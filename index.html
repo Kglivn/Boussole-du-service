@@ -1,262 +1,87 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mission G-12 — Navigation vers l’objectif</title>
+  <meta charset="UTF-8">
+  <title>Mission DGSE</title>
   <style>
-    :root{
-      --bg:#0e0f10; --ink:#33ff66; --dim:#b9ffcc; --danger:#e15050; --frame:#2a2a2a;
+    body {
+      background-color: #111;
+      color: #0f0;
+      font-family: "Courier New", monospace;
+      text-align: center;
+      padding: 40px;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background:radial-gradient(1000px 600px at 50% -10%, #1a1d1a 0%, var(--bg) 70%) fixed;
-      color:var(--ink); font-family:"Courier New", monospace;
-      display:flex; align-items:center; justify-content:center; padding:18px;
+    h1 {
+      font-size: 24px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
     }
-    .frame{
-      width:min(720px,100%); background:#111; border:2px solid var(--frame); border-radius:12px;
-      box-shadow:0 0 0 4px #000 inset, 0 10px 40px rgba(0,0,0,.6); overflow:hidden;
+    button {
+      background: #000;
+      color: #0f0;
+      border: 2px solid #0f0;
+      padding: 10px 20px;
+      font-family: "Courier New", monospace;
+      cursor: pointer;
+      margin-top: 20px;
     }
-    header,footer{ padding:14px 16px; border-bottom:1px dashed #2a3a2a }
-    footer{ border-top:1px dashed #2a3a2a; border-bottom:none; color:#6aa56f; font-size:.85rem }
-    h1{ margin:0; font-size:1.1rem; color:var(--dim); letter-spacing:1.5px; text-transform:uppercase }
-    main{ padding:16px }
-    p{ color:var(--dim); margin:8px 0 16px }
-    .btns{ display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 16px }
-    button{
-      background:var(--ink); color:#051105; border:none; border-radius:8px; padding:12px 16px;
-      font-weight:700; letter-spacing:.3px; text-transform:uppercase; cursor:pointer
+    button:disabled {
+      color: #555;
+      border-color: #555;
+      cursor: not-allowed;
     }
-    button:disabled{ background:#333; color:#888; cursor:not-allowed }
-    .status{ border:1px dashed #2b3f2b; border-radius:10px; min-height:72px; padding:12px 14px; margin:12px 0; color:var(--dim) }
-    .status.error{ border-color:#7a3838; color:#ffbcbc }
-    .status.ok{ border-color:#3fa55f; color:#c9ffd6 }
-    .readouts{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0 }
-    .card{ border:1px solid #233; border-radius:10px; padding:10px }
-    .label{ color:#8ad39a; font-size:.9rem }
-    .value{ font-size:1.2rem; margin-top:4px }
-    #arrow{
-      font-size:4rem; display:block; text-align:center; margin:8px 0 6px;
-      transform:rotate(0deg); transition:transform .12s linear;
+    #result {
+      margin-top: 30px;
+      font-size: 18px;
     }
-    .hint{ font-size:.9rem; color:#9bd8a8 }
-    .stamp{
-      color:var(--danger); border:2px solid var(--danger); padding:2px 10px; margin-left:auto;
-      transform:rotate(-6deg); font-weight:900; letter-spacing:2px; text-transform:uppercase; display:inline-block
-    }
-    @media (max-width:520px){ .readouts{ grid-template-columns:1fr } }
   </style>
 </head>
 <body>
-  <div class="frame" role="application" aria-label="Console de navigation — Mission G-12">
-    <header style="display:flex;align-items:center;gap:10px">
-      <h1>Mission G-12 · Cellule Navigation</h1>
-      <span class="stamp">Classifié</span>
-    </header>
-
-    <main>
-      <p>Agent, orientez-vous vers l’objectif. Autorisez l’accès <strong>GPS</strong> et <strong>boussole</strong> lorsque demandé.</p>
-
-      <div class="btns">
-        <button id="run">Exécuter la séquence</button>
-        <button id="reset" title="Réinitialiser (si vous avez modifié les autorisations)">Réinitialiser</button>
-      </div>
-
-      <div id="status" class="status">▷ Prêt. Appuyez sur <em>Exécuter</em> pour demander les autorisations.</div>
-
-      <div class="readouts">
-        <div class="card">
-          <div class="label">Distance à l’objectif</div>
-          <div id="dist" class="value">—</div>
-        </div>
-        <div class="card">
-          <div class="label">Azimut à suivre</div>
-          <div id="brg" class="value">—</div>
-        </div>
-        <div class="card">
-          <div class="label">Votre position</div>
-          <div id="pos" class="value">—</div>
-        </div>
-        <div class="card">
-          <div class="label">Cap du téléphone</div>
-          <div id="cap" class="value">—</div>
-        </div>
-      </div>
-
-      <div id="arrow" aria-hidden="true">➤</div>
-      <div class="hint">Tenez le téléphone <strong>à l’horizontale</strong> (face vers le ciel) pour une direction fiable.</div>
-    </main>
-
-    <footer>Direction des Renseignements — Bureau S-42 · Ne pas diffuser sans autorisation</footer>
-  </div>
+  <h1>Direction Générale de la Sécurité Extérieure</h1>
+  <p>Analyse de position en cours...</p>
+  <button id="computeBtn">Calculer la distance</button>
+  <p id="result"></p>
 
   <script>
-    // Cible
-    const TARGET = { lat:48.883222, lon:2.369361 };
-
-    // Limite d’appuis
+    const targetLat = 48.883222;
+    const targetLon = 2.369361;
     let attempts = 0;
-    const MAX_ATTEMPTS = 3;
+    const maxAttempts = 3;
 
-    // Éléments UI
-    const btnRun = document.getElementById('run');
-    const btnReset = document.getElementById('reset');
-    const statusEl = document.getElementById('status');
-    const distEl = document.getElementById('dist');
-    const brgEl  = document.getElementById('brg');
-    const posEl  = document.getElementById('pos');
-    const capEl  = document.getElementById('cap');
-    const arrow  = document.getElementById('arrow');
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // rayon de la Terre en mètres
+      const toRad = x => x * Math.PI / 180;
+      const φ1 = toRad(lat1);
+      const φ2 = toRad(lat2);
+      const Δφ = toRad(lat2 - lat1);
+      const Δλ = toRad(lon2 - lon1);
 
-    // Outils math
-    const toRad = d => d * Math.PI/180;
-    const toDeg = r => r * 180/Math.PI;
-    function haversine(lat1, lon1, lat2, lon2){
-      const R = 6371e3;
-      const φ1 = toRad(lat1), φ2 = toRad(lat2);
-      const dφ = toRad(lat2-lat1);
-      const dλ = toRad(lon2-lon1);
-      const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
-      return 2*R*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-    function bearing(lat1, lon1, lat2, lon2){
-      const φ1 = toRad(lat1), φ2 = toRad(lat2);
-      const λ1 = toRad(lon1), λ2 = toRad(lon2);
-      const y = Math.sin(λ2-λ1) * Math.cos(φ2);
-      const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(λ2-λ1);
-      return (toDeg(Math.atan2(y, x)) + 360) % 360; // 0=N
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
     }
 
-    // État cap boussole
-    let currentHeading = null; // 0=N (degrés)
-    let orientationListenerAdded = false;
+    document.getElementById("computeBtn").addEventListener("click", () => {
+      if (attempts >= maxAttempts) return;
 
-    function setStatus(msg, type){
-      statusEl.textContent = msg;
-      statusEl.classList.remove('error','ok');
-      if(type==='error') statusEl.classList.add('error');
-      if(type==='ok')    statusEl.classList.add('ok');
-    }
+      navigator.geolocation.getCurrentPosition(pos => {
+        attempts++;
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const d = haversine(lat, lon, targetLat, targetLon);
 
-    async function requestCompassPermission(){
-      // iOS 13+ exige une permission explicite
-      if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function'){
-        try{
-          const state = await DeviceOrientationEvent.requestPermission();
-          if(state !== 'granted') throw new Error('Permission boussole refusée');
-        }catch(e){
-          throw new Error("Boussole refusée. Allez dans Réglages > Safari > Motion & Orientation Access.");
+        document.getElementById("result").innerText =
+          `Distance à l'objectif : ${d.toFixed(1)} mètres. (Essai ${attempts}/${maxAttempts})`;
+
+        if (attempts >= maxAttempts) {
+          document.getElementById("computeBtn").disabled = true;
+          document.getElementById("result").innerText += "\n>> Tentatives épuisées.";
         }
-      }
-      // Android/desktop : pas de demande explicite, on écoutera l’événement
-    }
-
-    function startCompassListener(){
-      if(orientationListenerAdded) return;
-      orientationListenerAdded = true;
-
-      // iOS : webkitCompassHeading (0=N)
-      window.addEventListener('deviceorientation', (ev)=>{
-        if (typeof ev.webkitCompassHeading === 'number'){
-          currentHeading = ev.webkitCompassHeading; // déjà 0=N
-        } else if (typeof ev.alpha === 'number'){
-          // Android/Chrome : alpha est l’angle par rapport au nord magnétique si absolute=true (souvent non)
-          // Approximation courante : heading ≈ 360 - alpha
-          currentHeading = (360 - ev.alpha + 360) % 360;
-        }
-        if (typeof ev.beta === 'number' && typeof ev.gamma === 'number'){
-          // Indication d’horizontalité (simple)
-          const flat = Math.abs(ev.beta) < 25 && Math.abs(ev.gamma) < 25;
-          if(!flat){
-            capEl.textContent = "Incliné — tenez le tel à plat";
-          }
-        }
-        if (currentHeading != null){
-          capEl.textContent = currentHeading.toFixed(0) + "°";
-        }
-      }, { passive:true });
-    }
-
-    function updateUIWithPosition(lat, lon){
-      const d = haversine(lat, lon, TARGET.lat, TARGET.lon);
-      const b = bearing(lat, lon, TARGET.lat, TARGET.lon);
-      distEl.textContent = (d >= 1000 ? (d/1000).toFixed(2)+' km' : Math.round(d)+' m');
-      brgEl.textContent  = b.toFixed(1) + '°';
-      posEl.textContent  = lat.toFixed(6) + ", " + lon.toFixed(6);
-
-      // Oriente la flèche si on a un cap
-      if(currentHeading != null){
-        const rel = (b - currentHeading + 360) % 360; // rotation à appliquer
-        arrow.style.transform = `rotate(${rel}deg)`;
-      }
-      if(d < 50){
-        setStatus("✅ Objectif atteint. Procédez à la récupération.", "ok");
-      }
-    }
-
-    async function runSequence(){
-      if(attempts >= MAX_ATTEMPTS){
-        setStatus("⛔ Séquence verrouillée — nombre maximum d’exécutions atteint.", "error");
-        btnRun.disabled = true;
-        return;
-      }
-
-      // Vérification HTTPS (indispensable pour geoloc)
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost'){
-        setStatus("⚠️ Accédez à cette page via HTTPS (GitHub Pages) pour activer le GPS.", "error");
-        return;
-      }
-
-      attempts++;
-      if(attempts >= MAX_ATTEMPTS) btnRun.disabled = true;
-
-      try{
-        setStatus("Demande d’autorisation boussole…", null);
-        await requestCompassPermission();
-        startCompassListener();
-      }catch(e){
-        setStatus(e.message, 'error');
-        // On continue quand même : la boussole n’est pas obligatoire pour distance/azimut
-      }
-
-      if(!navigator.geolocation){
-        setStatus("Votre appareil ne supporte pas la géolocalisation.", "error");
-        return;
-      }
-
-      setStatus("Demande d’autorisation GPS…", null);
-      navigator.geolocation.getCurrentPosition(
-        (pos)=>{
-          setStatus("Autorisations accordées. Calcul en cours…", "ok");
-          const { latitude, longitude } = pos.coords;
-          updateUIWithPosition(latitude, longitude);
-        },
-        (err)=>{
-          // Codes: 1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT
-          if(err.code === 1){
-            setStatus("GPS refusé par l’utilisateur. Autorisez la localisation (icône cadenas > Autorisations).", "error");
-          } else if(err.code === 2){
-            setStatus("Position indisponible. Activez le GPS / mode haute précision.", "error");
-          } else if(err.code === 3){
-            setStatus("Délai dépassé. Réessayez en extérieur avec bonne visibilité.", "error");
-          } else {
-            setStatus("Erreur GPS: " + err.message, "error");
-          }
-        },
-        { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
-      );
-    }
-
-    btnRun.addEventListener('click', runSequence);
-    btnReset.addEventListener('click', ()=>{
-      attempts = 0; btnRun.disabled = false; currentHeading = null;
-      setStatus("Réinitialisé. Appuyez sur Exécuter pour redemander les autorisations.");
-      distEl.textContent = brgEl.textContent = posEl.textContent = capEl.textContent = '—';
-      arrow.style.transform = 'rotate(0deg)';
-      // Remettre un listener boussole si besoin
-      orientationListenerAdded = false;
+      }, err => {
+        document.getElementById("result").innerText = "Erreur GPS : " + err.message;
+      });
     });
   </script>
 </body>
