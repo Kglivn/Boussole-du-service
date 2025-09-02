@@ -3,18 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <title>Mission DGSE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       background-color: #111;
       color: #0f0;
       font-family: "Courier New", monospace;
       text-align: center;
-      padding: 40px;
+      margin: 0;
+      padding: 20px;
     }
     h1 {
-      font-size: 24px;
+      font-size: clamp(18px, 4vw, 28px);
       text-transform: uppercase;
       letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+    p {
+      font-size: clamp(14px, 3vw, 18px);
     }
     button {
       background: #000;
@@ -24,6 +30,8 @@
       font-family: "Courier New", monospace;
       cursor: pointer;
       margin-top: 20px;
+      font-size: clamp(14px, 3vw, 18px);
+      border-radius: 5px;
     }
     button:disabled {
       color: #555;
@@ -32,14 +40,15 @@
     }
     #result {
       margin-top: 30px;
-      font-size: 18px;
+      font-size: clamp(14px, 3vw, 18px);
+      white-space: pre-line;
     }
   </style>
 </head>
 <body>
   <h1>Direction Générale de la Sécurité Extérieure</h1>
   <p>Analyse de position en cours...</p>
-  <button id="computeBtn">Calculer la distance</button>
+  <button id="computeBtn">Calculer distance & azimut</button>
   <p id="result"></p>
 
   <script>
@@ -56,11 +65,26 @@
       const Δφ = toRad(lat2 - lat1);
       const Δλ = toRad(lon2 - lon1);
 
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+      const a = Math.sin(Δφ/2) ** 2 +
                 Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                Math.sin(Δλ/2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       return R * c;
+    }
+
+    function calculateAzimuth(lat1, lon1, lat2, lon2) {
+      const toRad = x => x * Math.PI / 180;
+      const toDeg = x => x * 180 / Math.PI;
+
+      const φ1 = toRad(lat1);
+      const φ2 = toRad(lat2);
+      const Δλ = toRad(lon2 - lon1);
+
+      const y = Math.sin(Δλ) * Math.cos(φ2);
+      const x = Math.cos(φ1) * Math.sin(φ2) -
+                Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+      let θ = toDeg(Math.atan2(y, x));
+      return (θ + 360) % 360; // normalisé entre 0 et 360°
     }
 
     document.getElementById("computeBtn").addEventListener("click", () => {
@@ -70,10 +94,12 @@
         attempts++;
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
+
         const d = haversine(lat, lon, targetLat, targetLon);
+        const az = calculateAzimuth(lat, lon, targetLat, targetLon);
 
         document.getElementById("result").innerText =
-          `Distance à l'objectif : ${d.toFixed(1)} mètres. (Essai ${attempts}/${maxAttempts})`;
+          `Distance à l'objectif : ${d.toFixed(1)} m\nAzimut : ${az.toFixed(1)}°\nEssai ${attempts}/${maxAttempts}`;
 
         if (attempts >= maxAttempts) {
           document.getElementById("computeBtn").disabled = true;
