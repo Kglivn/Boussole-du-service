@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NIL-OPTIMA // Outil de navigation</title>
+  <title>NIL-OPTIMA // Contrôle périodique</title>
   <style>
     body {
       margin:0; background:#0b0f14; color:#dfe7ef;
@@ -11,13 +11,13 @@
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       height:100vh; padding:20px; text-align:center;
     }
-    h1 { color:#7ee787; font-size:20px; letter-spacing:.08em; margin-bottom:20px; }
-    #output { margin-top:20px; font-size:18px; }
-    .muted { color:#7a8a99; font-size:14px; margin-top:15px; }
+    h1 { color:#7ee787; font-size:18px; letter-spacing:.1em; margin-bottom:20px; text-transform:uppercase; }
+    #output { margin-top:20px; font-size:16px; }
+    .muted { color:#7a8a99; font-size:13px; margin-top:15px; }
     button {
       margin-top:20px; padding:10px 18px;
       border:1px solid #7ee787; border-radius:8px;
-      background:transparent; color:#dfe7ef; font-size:16px; cursor:pointer;
+      background:transparent; color:#dfe7ef; font-size:15px; cursor:pointer;
     }
     button:disabled {
       opacity:0.5; cursor:not-allowed;
@@ -25,16 +25,17 @@
   </style>
 </head>
 <body>
-  <h1>DGSE // NIL-OPTIMA<br>Module de navigation</h1>
-  <button id="calcBtn">Calculer azimut & distance</button>
-  <div id="output">En attente d’action…</div>
+  <h1>D.G.S.E. // Mission NIL-OPTIMA<br>Procédure de contrôle</h1>
+  <button id="calcBtn">Effectuer un relevé</button>
+  <div id="output">En attente d’instructions…</div>
   <div id="cooldown" class="muted"></div>
-  <div class="muted">Coordonnées cibles : 43.1783926 N, 77.7394757 E</div>
+  <div class="muted">Directive n°43-178/77-739 : application obligatoire.</div>
 
   <script>
+    // Coordonnées cryptées (jamais expliquées)
     const targetLat = 43.1783926;
     const targetLon = 77.7394757;
-    const cooldownTime = 20 * 60; // 20 minutes en secondes
+    const cooldownTime = 20 * 60; // 20 minutes
     let cooldownRemaining = 0;
     let cooldownTimer;
 
@@ -42,25 +43,21 @@
     function toDeg(rad) { return rad * 180 / Math.PI; }
 
     function computeDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371e3; // rayon Terre en mètres
+      const R = 6371e3;
       const φ1 = toRad(lat1), φ2 = toRad(lat2);
       const Δφ = toRad(lat2 - lat1);
       const Δλ = toRad(lon2 - lon1);
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
+      const a = Math.sin(Δφ/2)**2 +
+                Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
     function computeBearing(lat1, lon1, lat2, lon2) {
       const φ1 = toRad(lat1), φ2 = toRad(lat2);
       const Δλ = toRad(lon2 - lon1);
       const y = Math.sin(Δλ) * Math.cos(φ2);
-      const x = Math.cos(φ1)*Math.sin(φ2) -
-                Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
-      const θ = Math.atan2(y, x);
-      return (toDeg(θ) + 360) % 360;
+      const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
     }
 
     function updatePosition(position) {
@@ -70,45 +67,43 @@
       const bearing = computeBearing(lat, lon, targetLat, targetLon);
 
       document.getElementById('output').innerHTML =
-        `📍 Votre position: ${lat.toFixed(5)} N, ${lon.toFixed(5)} E<br>` +
-        `🎯 Cible: 43.17839 N, 77.73948 E<br><br>` +
-        `➡️ Azimut: <strong>${bearing.toFixed(1)}°</strong><br>` +
-        `📏 Distance: <strong>${dist.toFixed(1)} m</strong>`;
+        `Relevé effectué à ${lat.toFixed(4)} N / ${lon.toFixed(4)} E<br><br>` +
+        `Valeur directionnelle : <strong>${bearing.toFixed(1)}°</strong><br>` +
+        `Écart métrique : <strong>${dist.toFixed(1)} unités</strong><br><br>` +
+        `Résultat conforme au protocole 17-B.`;
     }
 
     function errorPosition(err) {
       document.getElementById('output').innerHTML =
-        "Erreur GPS : " + err.message + "<br>Activez la localisation et rechargez la page.";
+        \"Erreur relevée : \" + err.message + \"<br>Veuillez recommencer ultérieurement.\";
     }
 
     function startCooldown() {
       cooldownRemaining = cooldownTime;
-      document.getElementById("calcBtn").disabled = true;
+      document.getElementById(\"calcBtn\").disabled = true;
       cooldownTimer = setInterval(() => {
         cooldownRemaining--;
         if (cooldownRemaining <= 0) {
           clearInterval(cooldownTimer);
-          document.getElementById("calcBtn").disabled = false;
-          document.getElementById("cooldown").textContent = "";
+          document.getElementById(\"calcBtn\").disabled = false;
+          document.getElementById(\"cooldown\").textContent = \"\"; 
         } else {
           const min = Math.floor(cooldownRemaining / 60);
           const sec = cooldownRemaining % 60;
-          document.getElementById("cooldown").textContent =
-            `⏳ Prochaine tentative possible dans ${min}m ${sec}s`;
+          document.getElementById(\"cooldown\").textContent =
+            `⏳ Prochaine vérification autorisée dans ${min}m ${sec}s`;
         }
       }, 1000);
     }
 
-    document.getElementById("calcBtn").addEventListener("click", () => {
-      if ("geolocation" in navigator) {
+    document.getElementById(\"calcBtn\").addEventListener(\"click\", () => {
+      if (\"geolocation\" in navigator) {
         navigator.geolocation.getCurrentPosition(updatePosition, errorPosition, {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 10000
+          enableHighAccuracy: true, maximumAge: 0, timeout: 10000
         });
         startCooldown();
       } else {
-        document.getElementById('output').innerHTML = "GPS non disponible sur cet appareil.";
+        document.getElementById('output').innerHTML = \"Module de localisation non disponible.\";
       }
     });
   </script>
