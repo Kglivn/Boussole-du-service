@@ -6,10 +6,7 @@
   <title>NIL-OPTIMA // Contrôle périodique</title>
   <meta name="color-scheme" content="dark">
   <style>
-    /* --- Thème espion mono "console" --- */
-    :root{
-      --bg:#0a0f0c; --fg:#d7ffe0; --accent:#7ee787; --muted:#7a8a99; --line:#11331b;
-    }
+    :root{ --bg:#0a0f0c; --fg:#d7ffe0; --accent:#7ee787; --muted:#7a8a99; --line:#11331b; }
     html,body{height:100%}
     body{
       margin:0; background:radial-gradient(1200px 800px at 50% 20%, #0e1a12 0%, var(--bg) 60%);
@@ -17,17 +14,14 @@
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
       text-align:center; padding:24px; position:relative; overflow:hidden;
     }
-    /* Scanlines */
     body::after{
       content:""; position:fixed; inset:0; pointer-events:none;
       background:repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 3px);
       mix-blend-mode:overlay;
     }
-    h1{
-      color:var(--accent); font-size:18px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 4px;
-    }
+    h1{ color:var(--accent); font-size:18px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 4px; }
     .sub{ color:var(--muted); font-size:12px; letter-spacing:.2em; text-transform:uppercase; }
-    #output{ font-size:16px; min-height:2.4em }
+    #output{ font-size:16px; min-height:3.4em }
     .muted{ color:var(--muted); font-size:13px; }
     button{
       padding:10px 18px; border:1px solid var(--accent); border-radius:10px;
@@ -36,11 +30,7 @@
     }
     button:hover{ box-shadow:0 0 24px 2px rgba(126,231,135,.15) inset, 0 0 24px 2px rgba(126,231,135,.1); }
     button:active{ transform:translateY(1px); }
-    button:disabled{
-      opacity:.55; cursor:not-allowed; box-shadow:none; filter:saturate(.7);
-    }
-
-    /* --- Module radar --- */
+    button:disabled{ opacity:.55; cursor:not-allowed; box-shadow:none; filter:saturate(.7); }
     .radar-wrap{ position:relative; width:min(70vmin,380px); aspect-ratio:1; }
     .radar{
       position:absolute; inset:0; border-radius:50%;
@@ -55,8 +45,7 @@
     .sweep{
       position:absolute; inset:0; border-radius:50%;
       background:conic-gradient(from 0turn, rgba(126,231,135,.3), rgba(126,231,135,0) 35deg, transparent 360deg);
-      animation:sweep 3.5s linear infinite;
-      filter:blur(.5px);
+      animation:sweep 3.5s linear infinite; filter:blur(.5px);
     }
     .grid{
       position:absolute; inset:12%; border-radius:50%;
@@ -75,17 +64,8 @@
     }
     .measuring .sweep{ animation-duration:2s; }
     @keyframes sweep{ to{ transform:rotate(1turn); } }
-    @keyframes pulse{
-      0%{ transform:scale(1); opacity:1 }
-      90%{ transform:scale(18); opacity:0 }
-      100%{ transform:scale(18); opacity:0 }
-    }
-
-    /* Cartouche bas de page */
-    .footer{
-      position:fixed; bottom:6px; left:0; right:0; display:flex; justify-content:center;
-      font-size:12px; color:var(--muted);
-    }
+    @keyframes pulse{ 0%{ transform:scale(1); opacity:1 } 90%{ transform:scale(18); opacity:0 } 100%{ transform:scale(18); opacity:0 } }
+    .footer{ position:fixed; bottom:6px; left:0; right:0; display:flex; justify-content:center; font-size:12px; color:var(--muted); }
   </style>
 </head>
 <body>
@@ -109,7 +89,7 @@
     // Valeur originale: "43.1783926,77.7394757"
     const _e = "NDMuMTc4MzkyNiw3Ny43Mzk0NzU3"; // base64
     const [_tLat, _tLon] = atob(_e).split(",").map(Number);
-    
+
     const COOLDOWN_SECONDS = 15 * 60; // 15 minutes
     const STORAGE_KEY = "niloptima_cooldown_until";
 
@@ -127,12 +107,22 @@
       const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
+    // NEW: calcul de l’azimut (0–360°, depuis la position de l’appareil)
+    function bearingDegrees(lat1, lon1, lat2, lon2){ // NEW
+      const φ1 = toRad(lat1), φ2 = toRad(lat2);      // NEW
+      const dλ = toRad(lon2 - lon1);                 // NEW
+      const y = Math.sin(dλ) * Math.cos(φ2);         // NEW
+      const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(dλ); // NEW
+      const θ = Math.atan2(y, x);                    // NEW
+      return (θ * 180/Math.PI + 360) % 360;          // NEW
+    }                                                // NEW
     function fmtDistance(m){
       if (!isFinite(m)) return "—";
       if (m < 1000) return `${m.toFixed(0)} m`;
       if (m < 10000) return `${(m/1000).toFixed(2)} km`;
       return `${(m/1000).toFixed(1)} km`;
     }
+    function fmtAzimuth(deg){ return `${deg.toFixed(1)}°`; } // NEW
 
     /* ===== Gestion cooldown (persiste au reload) ===== */
     function now(){ return Math.floor(Date.now()/1000); }
@@ -153,7 +143,6 @@
       const until = now() + COOLDOWN_SECONDS;
       localStorage.setItem(STORAGE_KEY, String(until));
       applyCooldownUI(COOLDOWN_SECONDS);
-      // On ne montre PAS de chrono. On réactive seulement quand c’est fini.
       const tick = setInterval(() => {
         const r = getCooldownRemaining();
         if (r <= 0){
@@ -174,10 +163,12 @@
     function onGeoSuccess(pos){
       const { latitude:lat, longitude:lon } = pos.coords;
       const d = distanceMeters(lat, lon, _tLat, _tLon);
+      const b = bearingDegrees(lat, lon, _tLat, _tLon); // NEW
       setMeasuring(false);
       out.innerHTML =
         `Relevé horodaté : <strong>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</strong><br>` +
         `Écart métrique : <strong>${fmtDistance(d)}</strong><br>` +
+        `Azimut opérationnel : <strong>${fmtAzimuth(b)}</strong><br>` +  /* NEW */
         `Résultat conforme au protocole 17-B.`;
     }
 
@@ -206,12 +197,11 @@
 
     /* ===== Bind UI ===== */
     btn.addEventListener("click", () => {
-      // Déclenche la mesure et lance le refroidissement sans afficher de compte à rebours
       runMeasurement();
       startCooldown();
     });
 
-    // Initialisation (applique l’éventuel cooldown actif)
+    // Initialisation
     applyCooldownUI(getCooldownRemaining());
   </script>
 </body>
