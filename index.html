@@ -4,108 +4,215 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NIL-OPTIMA // Contrôle périodique</title>
+  <meta name="color-scheme" content="dark">
   <style>
-    body {
-      margin:0; background:#0b0f14; color:#dfe7ef;
-      font:16px/1.6 ui-monospace, monospace;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      height:100vh; padding:20px; text-align:center;
+    /* --- Thème espion mono "console" --- */
+    :root{
+      --bg:#0a0f0c; --fg:#d7ffe0; --accent:#7ee787; --muted:#7a8a99; --line:#11331b;
     }
-    h1 { color:#7ee787; font-size:18px; letter-spacing:.1em; margin-bottom:20px; text-transform:uppercase; }
-    #output { margin-top:20px; font-size:16px; }
-    .muted { color:#7a8a99; font-size:13px; margin-top:15px; }
-    button {
-      margin-top:20px; padding:10px 18px;
-      border:1px solid #7ee787; border-radius:8px;
-      background:transparent; color:#dfe7ef; font-size:15px; cursor:pointer;
+    html,body{height:100%}
+    body{
+      margin:0; background:radial-gradient(1200px 800px at 50% 20%, #0e1a12 0%, var(--bg) 60%);
+      color:var(--fg); font:16px/1.6 "Courier New", ui-monospace, monospace;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+      text-align:center; padding:24px; position:relative; overflow:hidden;
     }
-    button:disabled {
-      opacity:0.5; cursor:not-allowed;
+    /* Scanlines */
+    body::after{
+      content:""; position:fixed; inset:0; pointer-events:none;
+      background:repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 3px);
+      mix-blend-mode:overlay;
+    }
+    h1{
+      color:var(--accent); font-size:18px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 4px;
+    }
+    .sub{ color:var(--muted); font-size:12px; letter-spacing:.2em; text-transform:uppercase; }
+    #output{ font-size:16px; min-height:2.4em }
+    .muted{ color:var(--muted); font-size:13px; }
+    button{
+      padding:10px 18px; border:1px solid var(--accent); border-radius:10px;
+      background:transparent; color:var(--fg); font-size:15px; cursor:pointer;
+      box-shadow:0 0 0 0 rgba(126,231,135,.35); transition:box-shadow .25s, transform .1s;
+    }
+    button:hover{ box-shadow:0 0 24px 2px rgba(126,231,135,.15) inset, 0 0 24px 2px rgba(126,231,135,.1); }
+    button:active{ transform:translateY(1px); }
+    button:disabled{
+      opacity:.55; cursor:not-allowed; box-shadow:none; filter:saturate(.7);
+    }
+
+    /* --- Module radar --- */
+    .radar-wrap{ position:relative; width:min(70vmin,380px); aspect-ratio:1; }
+    .radar{
+      position:absolute; inset:0; border-radius:50%;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(126,231,135,.18) 0 10%, transparent 40%),
+        repeating-radial-gradient(circle at 50% 50%, transparent 0 7%, rgba(126,231,135,.06) 7.5% 8%),
+        conic-gradient(from 0turn, rgba(126,231,135,.04), rgba(126,231,135,.12) 10deg, transparent 12deg 360deg),
+        radial-gradient(circle at 50% 50%, transparent 60%, var(--line) 60.5%);
+      box-shadow:0 0 0 1px rgba(126,231,135,.35) inset, 0 0 32px rgba(126,231,135,.15);
+      overflow:hidden;
+    }
+    .sweep{
+      position:absolute; inset:0; border-radius:50%;
+      background:conic-gradient(from 0turn, rgba(126,231,135,.3), rgba(126,231,135,0) 35deg, transparent 360deg);
+      animation:sweep 3.5s linear infinite;
+      filter:blur(.5px);
+    }
+    .grid{
+      position:absolute; inset:12%; border-radius:50%;
+      background:
+        radial-gradient(circle at 50% 50%, transparent 0 48%, rgba(126,231,135,.12) 48.2% 50%, transparent 50.2% 100%),
+        radial-gradient(circle at 50% 50%, transparent 0 24%, rgba(126,231,135,.12) 24.2% 26%, transparent 26.2% 100%),
+        linear-gradient(0deg, rgba(126,231,135,.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126,231,135,.12) 1px, transparent 1px);
+      background-size:100% 100%, 100% 100%, 100% 16%, 16% 100%;
+      opacity:.5; mask:radial-gradient(circle at 50% 50%, black 0 100%);
+    }
+    .pulse{
+      position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%;
+      background:var(--accent); box-shadow:0 0 8px rgba(126,231,135,.9);
+      animation:pulse 2.2s ease-out infinite;
+    }
+    .measuring .sweep{ animation-duration:2s; }
+    @keyframes sweep{ to{ transform:rotate(1turn); } }
+    @keyframes pulse{
+      0%{ transform:scale(1); opacity:1 }
+      90%{ transform:scale(18); opacity:0 }
+      100%{ transform:scale(18); opacity:0 }
+    }
+
+    /* Cartouche bas de page */
+    .footer{
+      position:fixed; bottom:6px; left:0; right:0; display:flex; justify-content:center;
+      font-size:12px; color:var(--muted);
     }
   </style>
 </head>
 <body>
-  <h1>D.G.S.E. // Mission NIL-OPTIMA<br>Procédure de contrôle</h1>
-  <button id="calcBtn">Effectuer un relevé</button>
+  <h1>D.G.S.E. // Mission NIL-OPTIMA</h1>
+  <div class="sub">Procédure de contrôle — Section Technique 17-B</div>
+
+  <div class="radar-wrap" id="radarWrap">
+    <div class="radar"><div class="sweep"></div><div class="grid"></div></div>
+    <div class="pulse"></div>
+  </div>
+
+  <button id="calcBtn" aria-live="polite">Effectuer un relevé</button>
   <div id="output">En attente d’instructions…</div>
-  <div id="cooldown" class="muted"></div>
-  <div class="muted">Directive n°43-178/77-739 : application obligatoire.</div>
+  <div id="cooldownMsg" class="muted" aria-live="polite"></div>
+
+  <div class="footer">Directive n°43-178/77-739 : application obligatoire.</div>
 
   <script>
-    // Coordonnées cryptées (jamais expliquées)
-    const targetLat = 43.1783926;
-    const targetLon = 77.7394757;
-    const cooldownTime = 20 * 60; // 20 minutes
-    let cooldownRemaining = 0;
-    let cooldownTimer;
+    /* ===== Paramètres opérationnels ===== */
+    // Coordonnées encodées (aucune mention dans l’interface)
+    // Valeur originale: "43.1783926,77.7394757"
+    const _e = "NDMuMTc4MzkyNiw3Ny43Mzk0NzU3"; // base64
+    const [_tLat, _tLon] = atob(_e).split(",").map(Number);
+    
+    const COOLDOWN_SECONDS = 15 * 60; // 15 minutes
+    const STORAGE_KEY = "niloptima_cooldown_until";
 
-    function toRad(deg) { return deg * Math.PI / 180; }
-    function toDeg(rad) { return rad * 180 / Math.PI; }
+    const btn = document.getElementById("calcBtn");
+    const out = document.getElementById("output");
+    const cdMsg = document.getElementById("cooldownMsg");
+    const radar = document.getElementById("radarWrap");
 
-    function computeDistance(lat1, lon1, lat2, lon2) {
+    /* ===== Utilitaires géodésiques ===== */
+    const toRad = d => d * Math.PI / 180;
+    function distanceMeters(lat1, lon1, lat2, lon2){
       const R = 6371e3;
       const φ1 = toRad(lat1), φ2 = toRad(lat2);
-      const Δφ = toRad(lat2 - lat1);
-      const Δλ = toRad(lon2 - lon1);
-      const a = Math.sin(Δφ/2)**2 +
-                Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const dφ = toRad(lat2 - lat1), dλ = toRad(lon2 - lon1);
+      const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    function fmtDistance(m){
+      if (!isFinite(m)) return "—";
+      if (m < 1000) return `${m.toFixed(0)} m`;
+      if (m < 10000) return `${(m/1000).toFixed(2)} km`;
+      return `${(m/1000).toFixed(1)} km`;
     }
 
-    function computeBearing(lat1, lon1, lat2, lon2) {
-      const φ1 = toRad(lat1), φ2 = toRad(lat2);
-      const Δλ = toRad(lon2 - lon1);
-      const y = Math.sin(Δλ) * Math.cos(φ2);
-      const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
-      return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    /* ===== Gestion cooldown (persiste au reload) ===== */
+    function now(){ return Math.floor(Date.now()/1000); }
+    function getCooldownRemaining(){
+      const until = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+      return Math.max(0, until - now());
     }
-
-    function updatePosition(position) {
-      const lat = position.coords.latitude;
-      const lon = position.coords.longitude;
-      const dist = computeDistance(lat, lon, targetLat, targetLon);
-      const bearing = computeBearing(lat, lon, targetLat, targetLon);
-
-      document.getElementById('output').innerHTML =
-        `Relevé effectué à ${lat.toFixed(4)} N / ${lon.toFixed(4)} E<br><br>` +
-        `Valeur directionnelle : <strong>${bearing.toFixed(1)}°</strong><br>` +
-        `Écart métrique : <strong>${dist.toFixed(1)} unités</strong><br><br>` +
-        `Résultat conforme au protocole 17-B.`;
+    function applyCooldownUI(remaining){
+      if (remaining > 0){
+        btn.disabled = true;
+        cdMsg.textContent = "Module en refroidissement. Nouvelle vérification non autorisée.";
+      } else {
+        btn.disabled = false;
+        cdMsg.textContent = "";
+      }
     }
-
-    function errorPosition(err) {
-      document.getElementById('output').innerHTML =
-        \"Erreur relevée : \" + err.message + \"<br>Veuillez recommencer ultérieurement.\";
-    }
-
-    function startCooldown() {
-      cooldownRemaining = cooldownTime;
-      document.getElementById(\"calcBtn\").disabled = true;
-      cooldownTimer = setInterval(() => {
-        cooldownRemaining--;
-        if (cooldownRemaining <= 0) {
-          clearInterval(cooldownTimer);
-          document.getElementById(\"calcBtn\").disabled = false;
-          document.getElementById(\"cooldown\").textContent = \"\"; 
-        } else {
-          const min = Math.floor(cooldownRemaining / 60);
-          const sec = cooldownRemaining % 60;
-          document.getElementById(\"cooldown\").textContent =
-            `⏳ Prochaine vérification autorisée dans ${min}m ${sec}s`;
+    function startCooldown(){
+      const until = now() + COOLDOWN_SECONDS;
+      localStorage.setItem(STORAGE_KEY, String(until));
+      applyCooldownUI(COOLDOWN_SECONDS);
+      // On ne montre PAS de chrono. On réactive seulement quand c’est fini.
+      const tick = setInterval(() => {
+        const r = getCooldownRemaining();
+        if (r <= 0){
+          clearInterval(tick);
+          applyCooldownUI(0);
         }
       }, 1000);
     }
 
-    document.getElementById(\"calcBtn\").addEventListener(\"click\", () => {
-      if (\"geolocation\" in navigator) {
-        navigator.geolocation.getCurrentPosition(updatePosition, errorPosition, {
-          enableHighAccuracy: true, maximumAge: 0, timeout: 10000
-        });
-        startCooldown();
-      } else {
-        document.getElementById('output').innerHTML = \"Module de localisation non disponible.\";
+    /* ===== Mesure ===== */
+    function setMeasuring(state){
+      radar.classList.toggle("measuring", !!state);
+      if (state){
+        out.innerHTML = "Traitement en cours…<br>Veuillez conserver l’appareil immobile.";
       }
+    }
+
+    function onGeoSuccess(pos){
+      const { latitude:lat, longitude:lon } = pos.coords;
+      const d = distanceMeters(lat, lon, _tLat, _tLon);
+      setMeasuring(false);
+      out.innerHTML =
+        `Relevé horodaté : <strong>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</strong><br>` +
+        `Écart métrique : <strong>${fmtDistance(d)}</strong><br>` +
+        `Résultat conforme au protocole 17-B.`;
+    }
+
+    function onGeoError(err){
+      setMeasuring(false);
+      let msg = "Erreur relevée. ";
+      switch(err.code){
+        case 1: msg += "Autorisation de localisation refusée."; break;
+        case 2: msg += "Position indisponible."; break;
+        case 3: msg += "Délai dépassé."; break;
+        default: msg += err.message || "Incident non spécifié.";
+      }
+      out.innerHTML = `${msg}<br>Tenter un relevé ultérieurement.`;
+    }
+
+    function runMeasurement(){
+      if (!("geolocation" in navigator)){
+        out.textContent = "Module de localisation non disponible sur cet appareil.";
+        return;
+      }
+      setMeasuring(true);
+      navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {
+        enableHighAccuracy:true, maximumAge:0, timeout:10000
+      });
+    }
+
+    /* ===== Bind UI ===== */
+    btn.addEventListener("click", () => {
+      // Déclenche la mesure et lance le refroidissement sans afficher de compte à rebours
+      runMeasurement();
+      startCooldown();
     });
+
+    // Initialisation (applique l’éventuel cooldown actif)
+    applyCooldownUI(getCooldownRemaining());
   </script>
 </body>
 </html>
